@@ -21,7 +21,7 @@ class actuationUI(tk.Frame):
         self.master = master
         self.master.title("Actuation UI")
         self.master.iconbitmap("assets/metasuit.ico")
-        self.master.geometry("1100x600")
+        self.master.geometry("490x600")
 
         
 
@@ -31,15 +31,18 @@ class actuationUI(tk.Frame):
         self.run = False
 
         #Configure Arduino connection
-        #self.arduino = serial.Serial(port=None , baudrate=115200, timeout=.1)
+        self.serial = serial.Serial(port="COM6" , baudrate=115200, timeout=.1)
         self.bufferSize = 3
-        #write error message if port could not be opened 
+        
+        self.dischargeByte = 350
+        self.leftPolarityByte = 300
+        self.rightPolarityByte = 320
 
 
         self.initialSignal()
 
-        # self.amplitude = self.automaticActuationFrame.sliderAmplitude.get()
-        # self.freq = self.automaticActuationFrame.sliderFreq.get()
+        # self.amplitude = self.actuationSettingsFrame.sliderAmplitude.get()
+        # self.freq = self.actuationSettingsFrame.sliderFreq.get()
 
         
         # self.y = np.zeros(len(self.t))
@@ -58,8 +61,8 @@ class actuationUI(tk.Frame):
         self.channelSettingsFrame = channelSettings(self, title ="Channel Settings")
         self.channelSettingsFrame.grid(row=0, column=1, sticky="ew", pady=(20,0), padx=(20,20), ipady=10)
 
-        self.automaticActuationFrame = automaticActuation(self, title="Automatic Actuation")
-        self.automaticActuationFrame.grid(row=1, column=1, pady=(20,0), padx=(20,20), ipady=10)
+        self.actuationSettingsFrame = actuationSettings(self, title="Actuation Settings")
+        self.actuationSettingsFrame.grid(row=1, column=1, pady=(20,0), padx=(20,20), ipady=10)
 
         self.graphDataFrame = graphData(self)
         self.graphDataFrame.grid(row=0, rowspan=2, column=2, pady=(20,0), ipady=10)
@@ -67,9 +70,9 @@ class actuationUI(tk.Frame):
 
     def startTask(self):
         #Prevent user from starting task a second time
-        self.automaticActuationFrame.startButton['state'] = 'disabled'
-        self.automaticActuationFrame.sliderFreq['state'] = 'disabled'
-        self.automaticActuationFrame.actuationTypeMenu['state'] = 'disabled'
+        self.actuationSettingsFrame.startButton['state'] = 'disabled'
+        self.actuationSettingsFrame.sliderFreq['state'] = 'disabled'
+        self.actuationSettingsFrame.actuationTypeMenu['state'] = 'disabled'
 
         #Shared flag to alert task if it should stop
         self.continueRunning = True
@@ -80,9 +83,9 @@ class actuationUI(tk.Frame):
 
         else:
             self.master.after(100, self.runTask)
-            self.automaticActuationFrame.sliderAmplitude['state'] = 'disabled'
+            self.actuationSettingsFrame.sliderAmplitude['state'] = 'disabled'
 
-        print(self.arduino)
+        print(self.serial)
 
         self.start_time = time.time()
 
@@ -116,7 +119,7 @@ class actuationUI(tk.Frame):
        
 
     def runManualTask(self):
-        self.amplitude = int(self.automaticActuationFrame.currentSliderAmplitude.get())
+        self.amplitude = int(self.actuationSettingsFrame.currentSliderAmplitude.get())
         print(self.amplitude)
         # self.arduino.write(bytes(self.amplitude,'utf-8'))
         # time.sleep(0.05)
@@ -124,8 +127,22 @@ class actuationUI(tk.Frame):
         self.amplitude = str(self.amplitude).zfill(self.bufferSize).encode()
         # Send data to Arduino
 
+        if(self.actuationSettingsFrame.polaritySwitched):
+            if(self.actuationSettingsFrame.currentPolarity == "left"):
+                self.serial.write(self.leftPolarityByte.to_bytes(2, byteorder='little'))
 
-        #self.arduino.write(self.amplitude)
+            elif(self.actuationSettingsFrame.currentPolarity == "right"):
+                self.serial.write(self.rightPolarityByte.to_bytes(2, byteorder='little'))
+
+            print("Polarity switched")
+            self.actuationSettingsFrame.polaritySwitched = 0
+
+        
+        if(self.actuationSettingsFrame.currentDischarge.get() == 1):
+            self.serial.write(self.dischargeByte.to_bytes(2, byteorder='little'))
+        else:
+            self.serial.write(self.amplitude.to_bytes(2, byteorder='little'))
+
 
 
         # Wait for a moment to ensure the data is sent
@@ -154,10 +171,10 @@ class actuationUI(tk.Frame):
     def stopTask(self):
         #call back for the "stop task" button
         self.continueRunning = False
-        self.automaticActuationFrame.startButton['state'] = 'enabled'
-        self.automaticActuationFrame.sliderFreq['state'] = 'enabled'
-        self.automaticActuationFrame.actuationTypeMenu['state'] = 'enabled'
-        self.automaticActuationFrame.sliderAmplitude['state'] = 'enabled'
+        self.actuationSettingsFrame.startButton['state'] = 'enabled'
+        self.actuationSettingsFrame.sliderFreq['state'] = 'enabled'
+        self.actuationSettingsFrame.actuationTypeMenu['state'] = 'enabled'
+        self.actuationSettingsFrame.sliderAmplitude['state'] = 'enabled'
         self.unelegant_count = 0
         self.initialSignal()
         self.createSignal()
@@ -176,40 +193,40 @@ class actuationUI(tk.Frame):
         self.createSignal()
 
     def createSignal(self):
-        self.amplitude = float(self.automaticActuationFrame.currentSliderAmplitude.get())
-        self.period = float(self.automaticActuationFrame.getCurrentValueFreq())
+        self.amplitude = float(self.actuationSettingsFrame.currentSliderAmplitude.get())
+        self.period = float(self.actuationSettingsFrame.getCurrentValueFreq())
         
         self.freq = 1/self.period
 
         self.multiple = self.smallest_multiple_greater_than_6()
 
-        self.mode = self.automaticActuationFrame.optionActVar.get() 
+        self.mode = self.actuationSettingsFrame.optionActVar.get() 
 
         self.t_neg = np.arange(-1,0, 1/(self.multiple*200))
         self.t_neg = np.delete(self.t_neg, -1)
         self.t = np.arange(0, self.multiple, 1/(self.multiple*200))
         
         if(self.mode == "Manual"):
-            self.automaticActuationFrame.sliderFreq['state'] = 'disabled'
+            self.actuationSettingsFrame.sliderFreq['state'] = 'disabled'
             self.y =  np.zeros(len(self.t))
 
            
            
         elif(self.mode == "Step"):
-            self.automaticActuationFrame.sliderFreq['state'] = 'disabled'
+            self.actuationSettingsFrame.sliderFreq['state'] = 'disabled'
             self.y =  self.amplitude*np.ones(len(self.t))
         elif(self.mode == "Sine"):
-            self.automaticActuationFrame.sliderFreq['state'] = 'enabled'
+            self.actuationSettingsFrame.sliderFreq['state'] = 'enabled'
             
             self.y =  self.amplitude/2 - self.amplitude/2*np.cos(2*np.pi*self.freq*self.t)
         elif(self.mode == "Square"):
-            self.automaticActuationFrame.sliderFreq['state'] = 'enabled'
+            self.actuationSettingsFrame.sliderFreq['state'] = 'enabled'
             self.y =  0.5*(self.amplitude + self.amplitude*signal.square(2*np.pi*self.freq*self.t))
         elif(self.mode == "Triangle"):
-            self.automaticActuationFrame.sliderFreq['state'] = 'enabled'
+            self.actuationSettingsFrame.sliderFreq['state'] = 'enabled'
             self.y =  self.amplitude*0.5*(1 + signal.sawtooth(2 * np.pi * self.freq * self.t, 0.5))
         elif(self.mode == "Sawtooth"):
-            self.automaticActuationFrame.sliderFreq['state'] = 'enabled'
+            self.actuationSettingsFrame.sliderFreq['state'] = 'enabled'
             self.y =  self.amplitude/2*(1+signal.sawtooth(2 * np.pi * self.freq * self.t))
         else:
             print("Error: Invalid actuation type") 
@@ -237,13 +254,11 @@ class actuationUI(tk.Frame):
         self.graphDataFrame.ax.axvline(x=self.period, color='r')
         self.graphDataFrame.graph.draw()
 
-
     def smallest_multiple_greater_than_6(self):
         self.multiple = self.period
         while self.multiple <= 6:
             self.multiple += self.period
         return self.multiple
-
 
 
 
@@ -291,9 +306,7 @@ class channelSettings(tk.LabelFrame):
         self.parent.arduino = self.optionBoardVar.get()
 
 
-
-
-class automaticActuation(tk.LabelFrame):
+class actuationSettings(tk.LabelFrame):
 
     def __init__(self, parent, title):
         tk.LabelFrame.__init__(self, parent, text=title, labelanchor='n')
@@ -302,7 +315,14 @@ class automaticActuation(tk.LabelFrame):
         self.actuationTypes = ["Manual", "Step","Square", "Sine", "Triangle", "Sawtooth"]
         self.optionActVar = tk.StringVar(self)
 
-        #self.checkboxVar = tk.IntVar()
+        self.currentPolarity = "left"
+        self.currentDischarge = tk.IntVar()
+        self.polaritySwitched = 0
+        self.dischargeSwitched = 0
+
+        self.imgLeft = tk.PhotoImage(file = "assets/left.png")
+        self.imgRight = tk.PhotoImage(file = "assets/right.png")
+
 
         self.currentAmplitude = tk.IntVar()
         self.currentSliderAmplitude = tk.DoubleVar()
@@ -326,8 +346,11 @@ class automaticActuation(tk.LabelFrame):
         self.actuationTypeMenu.grid(row=1,columnspan=1, sticky="ew", padx=self.xPadding)
 
         #create a check box in tkinter calles HV
-        #self.hvCheck = tk.Checkbutton(self, text="HV")
-        #self.hvCheck.grid(row=1, column=1, sticky='w', padx=self.xPadding, pady=(10,0))
+        self.polaritySwitch = ttk.Button(self, text="Switch Polarity", command=self.polarityChanged)
+        self.polaritySwitch.grid(row=2, column=0, sticky='w', padx=self.xPadding, pady=(10,10))
+
+        self.discharge = ttk.Checkbutton(self, text="Discharge", command=self.dischargeChanged, variable=self.currentDischarge)
+        self.discharge.grid(row=2, column=1, sticky='e', padx=self.xPadding, pady=(10,10))
   
         self.spinBoxAmplitude = ttk.Spinbox(
             self,
@@ -338,10 +361,10 @@ class automaticActuation(tk.LabelFrame):
             wrap=True,
             command=self.spinBoxChanged_1)
         self.spinBoxAmplitude.bind("<Return>", self.spinBoxChanged_2)
-        self.spinBoxAmplitude.grid(row=2, column=0, sticky='w', padx=self.xPadding, pady=(10,0))
+        self.spinBoxAmplitude.grid(row=3, column=0, sticky='w', padx=self.xPadding, pady=(10,0))
 
         self.sliderAmplitudeLabel = ttk.Label(self, text="Duty Cylce [0,255]")
-        self.sliderAmplitudeLabel.grid(row=2, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+        self.sliderAmplitudeLabel.grid(row=3, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
 
         
         # self.currentValueAmplitudeLabel = ttk.Label(self, text=self.getCurrentValueAmplitude())
@@ -349,26 +372,26 @@ class automaticActuation(tk.LabelFrame):
 
         self.sliderAmplitude = ttk.Scale(self, from_=0, to=255, orient=tk.HORIZONTAL,cursor="pirate",  command=self.sliderChangedAmplitude, variable=self.currentSliderAmplitude)
         self.sliderAmplitude.set(self.currentAmplitude.get())
-        self.sliderAmplitude.grid(row=3, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
+        self.sliderAmplitude.grid(row=4, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
 
         self.sliderFreqLabel = ttk.Label(self, text="Period [s]")
-        self.sliderFreqLabel.grid(row=4, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+        self.sliderFreqLabel.grid(row=5, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
 
         self.freqCurrentValue = tk.DoubleVar()
         self.currentValueFreqLabel = ttk.Label(self, text=self.getCurrentValueFreq())
-        self.currentValueFreqLabel.grid(row=4, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+        self.currentValueFreqLabel.grid(row=5, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
 
         self.sliderFreq = ttk.Scale(self, from_=0.2, to=5, orient=tk.HORIZONTAL, command=self.sliderChangedFreq,variable=self.freqCurrentValue)
         self.sliderFreq.set(1)
-        self.sliderFreq.grid(row=5, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
+        self.sliderFreq.grid(row=6, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
     
         
 
         self.startButton = ttk.Button(self, text="Start Task", command=self.parent.startTask)
-        self.startButton.grid(row=6, column=0, sticky='w', padx=self.xPadding, pady=(10,0))
+        self.startButton.grid(row=7, column=0, sticky='w', padx=self.xPadding, pady=(20,0))
 
         self.stopButton = ttk.Button(self, text="Stop Task", command=self.parent.stopTask)
-        self.stopButton.grid(row=6, column=1, sticky='e', padx=self.xPadding, pady=(10,0))
+        self.stopButton.grid(row=7, column=1, sticky='e', padx=self.xPadding, pady=(20,0))
         
 
     def spinBoxChanged_1(self):
@@ -381,9 +404,24 @@ class automaticActuation(tk.LabelFrame):
 
     def sliderChangedAmplitude(self, event):
         self.currentAmplitude.set(int(self.currentSliderAmplitude.get()))
-
+        #self.parent.createSignal()
         #self.spinBoxAmplitude.configure(text=self.currentAmplitude.get())
         
+    def polarityChanged(self):
+        self.polaritySwitched = 1
+
+        if(self.currentPolarity == "left"):
+            self.currentPolarity = "right"
+        else:
+            self.currentPolarity = "left"
+        print("Polarity in state: " + self.currentPolarity)
+
+    def dischargeChanged(self):
+        self.dischargeSwitched = 1
+        print("Discharge in state: " + str(self.currentDischarge.get()))
+    
+
+
 
     def getCurrentValueFreq(self):
         return '{: .1f}'.format(self.freqCurrentValue.get())
