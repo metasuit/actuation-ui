@@ -31,7 +31,7 @@ class actuationUI(tk.Frame):
         self.run = False
 
         #Configure Arduino connection
-        #self.arduino = serial.Serial(port=None , baudrate=115200, timeout=.1)
+        self.arduino = serial.Serial(port="COM6" , baudrate=115200, timeout=.1)
         self.bufferSize = 3
         #write error message if port could not be opened 
 
@@ -125,7 +125,7 @@ class actuationUI(tk.Frame):
         # Send data to Arduino
 
 
-        #self.arduino.write(self.amplitude)
+        self.arduino.write(self.amplitude)
 
 
         # Wait for a moment to ensure the data is sent
