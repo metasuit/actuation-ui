@@ -31,7 +31,9 @@ class actuationUI(tk.Frame):
         self.run = False
 
         #Configure Arduino connection
+
         self.serial = serial.Serial(port="COM6" , baudrate=115200, timeout=.1)
+
         self.bufferSize = 3
         
         self.dischargeByte = 350
@@ -143,6 +145,7 @@ class actuationUI(tk.Frame):
         else:
             self.serial.write(self.amplitude.to_bytes(2, byteorder='little'))
 
+        self.arduino.write(self.amplitude)
 
 
         # Wait for a moment to ensure the data is sent
