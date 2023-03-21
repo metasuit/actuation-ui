@@ -31,10 +31,9 @@ class actuationUI(tk.Frame):
         self.run = False
 
         #Configure Arduino connection
-        self.arduino = serial.Serial(port='/dev/cu.usbserial14320' , baudrate=115200, timeout=.1)
+        self.arduino = serial.Serial(port='COM6' , baudrate=115200, timeout=.1)
         #write error message if port could not be opened 
-        if(self.arduino.is_open == False):
-            print("Could not open port")
+
 
         self.initialSignal()
 
@@ -116,21 +115,26 @@ class actuationUI(tk.Frame):
        
 
     def runManualTask(self):
-        self.amplitude = float(self.automaticActuationFrame.getCurrentValueAmplitude())
+        self.amplitude = str(self.automaticActuationFrame.getCurrentValueAmplitude())
+        print(self.amplitude)
+        self.arduino.write(bytes(self.amplitude,'utf-8'))
+        time.sleep(0.05)
+        
 
-        self.signal[int(self.multiple*200)] = self.amplitude
-        print(self.signal[int(self.multiple*200)])
+        
+        # self.signal[int(self.multiple*200)] = self.amplitude
+        # print(self.signal[int(self.multiple*200)])
 
 
-        self.signal = np.roll(self.signal, -1)
+        # self.signal = np.roll(self.signal, -1)
 
-        self.unelegant_count += 1
-        print(self.unelegant_count)
+        # self.unelegant_count += 1 
+        # print(self.unelegant_count)
 
 
-        if(self.unelegant_count %50 == 0):
-            self.updateGraph()
-            self.unelegant_count = 0
+        # if(self.unelegant_count %50 == 0):
+        #     self.updateGraph()
+        #     self.unelegant_count = 0
 
         if(self.continueRunning):
             self.master.after(2, self.runManualTask)
@@ -302,7 +306,7 @@ class automaticActuation(tk.LabelFrame):
         self.currentValueAmplitudeLabel.grid(row=0, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
 
         self.sliderAmplitude = ttk.Scale(self, from_=0, to=255, orient=tk.HORIZONTAL, command=self.sliderChangedAmplitude,variable=self.maxAmplitudeCurrentValue)
-        self.sliderAmplitude.set(100)
+        self.sliderAmplitude.set(10)
         self.sliderAmplitude.grid(row=1, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
 
         self.sliderFreqLabel = ttk.Label(self, text="Period [s]")
