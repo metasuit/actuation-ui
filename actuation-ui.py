@@ -32,6 +32,7 @@ class actuationUI(tk.Frame):
 
         #Configure Arduino connection
         self.arduino = serial.Serial(port='COM6' , baudrate=115200, timeout=.1)
+        self.bufferSize = 3
         #write error message if port could not be opened 
 
 
@@ -117,11 +118,16 @@ class actuationUI(tk.Frame):
     def runManualTask(self):
         self.amplitude = str(self.automaticActuationFrame.getCurrentValueAmplitude())
         print(self.amplitude)
-        self.arduino.write(bytes(self.amplitude,'utf-8'))
-        time.sleep(0.05)
-        
+        # self.arduino.write(bytes(self.amplitude,'utf-8'))
+        # time.sleep(0.05)
+         # Convert data to bytes and add padding if necessary
+        self.amplitude = str(self.amplitude).zfill(self.bufferSize).encode()
+        # Send data to Arduino
+        self.arduino.write(self.amplitude)
+        # Wait for a moment to ensure the data is sent
+        time.sleep(0.01)
 
-        
+    
         # self.signal[int(self.multiple*200)] = self.amplitude
         # print(self.signal[int(self.multiple*200)])
 
@@ -306,7 +312,7 @@ class automaticActuation(tk.LabelFrame):
         self.currentValueAmplitudeLabel.grid(row=0, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
 
         self.sliderAmplitude = ttk.Scale(self, from_=0, to=255, orient=tk.HORIZONTAL, command=self.sliderChangedAmplitude,variable=self.maxAmplitudeCurrentValue)
-        self.sliderAmplitude.set(10)
+        self.sliderAmplitude.set(0)
         self.sliderAmplitude.grid(row=1, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
 
         self.sliderFreqLabel = ttk.Label(self, text="Period [s]")
