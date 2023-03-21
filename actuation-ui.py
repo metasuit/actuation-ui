@@ -31,7 +31,7 @@ class actuationUI(tk.Frame):
         self.run = False
 
         #Configure Arduino connection
-        self.arduino = serial.Serial(port='COM6' , baudrate=115200, timeout=.1)
+        #self.arduino = serial.Serial(port=None , baudrate=115200, timeout=.1)
         self.bufferSize = 3
         #write error message if port could not be opened 
 
@@ -116,14 +116,18 @@ class actuationUI(tk.Frame):
        
 
     def runManualTask(self):
-        self.amplitude = str(self.automaticActuationFrame.getCurrentValueAmplitude())
+        self.amplitude = int(self.automaticActuationFrame.currentSliderAmplitude.get())
         print(self.amplitude)
         # self.arduino.write(bytes(self.amplitude,'utf-8'))
         # time.sleep(0.05)
          # Convert data to bytes and add padding if necessary
         self.amplitude = str(self.amplitude).zfill(self.bufferSize).encode()
         # Send data to Arduino
-        self.arduino.write(self.amplitude)
+
+
+        #self.arduino.write(self.amplitude)
+
+
         # Wait for a moment to ensure the data is sent
         time.sleep(0.01)
 
@@ -172,7 +176,7 @@ class actuationUI(tk.Frame):
         self.createSignal()
 
     def createSignal(self):
-        self.amplitude = float(self.automaticActuationFrame.getCurrentValueAmplitude())
+        self.amplitude = float(self.automaticActuationFrame.currentSliderAmplitude.get())
         self.period = float(self.automaticActuationFrame.getCurrentValueFreq())
         
         self.freq = 1/self.period
@@ -298,43 +302,67 @@ class automaticActuation(tk.LabelFrame):
         self.actuationTypes = ["Manual", "Step","Square", "Sine", "Triangle", "Sawtooth"]
         self.optionActVar = tk.StringVar(self)
 
+        #self.checkboxVar = tk.IntVar()
+
+        self.currentAmplitude = tk.IntVar()
+        self.currentSliderAmplitude = tk.DoubleVar()
+
+        self.currentAmplitude.set(0)
+
         self.xPadding = (30,30)
         self.create_widgets()
 
     def create_widgets(self):
-  
 
-        self.sliderAmplitudeLabel = ttk.Label(self, text="Duty Cylce [0,255]")
-        self.sliderAmplitudeLabel.grid(row=0, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
 
-        self.maxAmplitudeCurrentValue = tk.DoubleVar()
-        self.currentValueAmplitudeLabel = ttk.Label(self, text=self.getCurrentValueAmplitude())
-        self.currentValueAmplitudeLabel.grid(row=0, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
-
-        self.sliderAmplitude = ttk.Scale(self, from_=0, to=255, orient=tk.HORIZONTAL, command=self.sliderChangedAmplitude,variable=self.maxAmplitudeCurrentValue)
-        self.sliderAmplitude.set(0)
-        self.sliderAmplitude.grid(row=1, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
-
-        self.sliderFreqLabel = ttk.Label(self, text="Period [s]")
-        self.sliderFreqLabel.grid(row=2, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
-
-        self.freqCurrentValue = tk.DoubleVar()
-        self.currentValueFreqLabel = ttk.Label(self, text=self.getCurrentValueFreq())
-        self.currentValueFreqLabel.grid(row=2, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
-
-        self.sliderFreq = ttk.Scale(self, from_=0.2, to=5, orient=tk.HORIZONTAL, command=self.sliderChangedFreq,variable=self.freqCurrentValue)
-        self.sliderFreq.set(1)
-        self.sliderFreq.grid(row=3, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
-    
         self.actuationTypeLabel = ttk.Label(self, text="Actuation Type")
-        self.actuationTypeLabel.grid(row=4,sticky='w', padx=self.xPadding, pady=(10,0))
+        self.actuationTypeLabel.grid(row=0,columnspan=1,sticky='w', padx=self.xPadding, pady=(10,0))
 
         self.actuationTypeMenu = ttk.OptionMenu(
             self,
             self.optionActVar,
             self.actuationTypes[0],
             *self.actuationTypes, command=self.actuationTypeChanged)
-        self.actuationTypeMenu.grid(row=5,columnspan=2, sticky="ew", padx=self.xPadding)
+        self.actuationTypeMenu.grid(row=1,columnspan=1, sticky="ew", padx=self.xPadding)
+
+        #create a check box in tkinter calles HV
+        #self.hvCheck = tk.Checkbutton(self, text="HV")
+        #self.hvCheck.grid(row=1, column=1, sticky='w', padx=self.xPadding, pady=(10,0))
+  
+        self.spinBoxAmplitude = ttk.Spinbox(
+            self,
+            from_=0,
+            to=255,
+            increment=1,
+            textvariable=self.currentAmplitude,
+            wrap=True,
+            command=self.spinBoxChanged_1)
+        self.spinBoxAmplitude.bind("<Return>", self.spinBoxChanged_2)
+        self.spinBoxAmplitude.grid(row=2, column=0, sticky='w', padx=self.xPadding, pady=(10,0))
+
+        self.sliderAmplitudeLabel = ttk.Label(self, text="Duty Cylce [0,255]")
+        self.sliderAmplitudeLabel.grid(row=2, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+
+        
+        # self.currentValueAmplitudeLabel = ttk.Label(self, text=self.getCurrentValueAmplitude())
+        # self.currentValueAmplitudeLabel.grid(row=0, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+
+        self.sliderAmplitude = ttk.Scale(self, from_=0, to=255, orient=tk.HORIZONTAL,cursor="pirate",  command=self.sliderChangedAmplitude, variable=self.currentSliderAmplitude)
+        self.sliderAmplitude.set(self.currentAmplitude.get())
+        self.sliderAmplitude.grid(row=3, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
+
+        self.sliderFreqLabel = ttk.Label(self, text="Period [s]")
+        self.sliderFreqLabel.grid(row=4, column=1, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+
+        self.freqCurrentValue = tk.DoubleVar()
+        self.currentValueFreqLabel = ttk.Label(self, text=self.getCurrentValueFreq())
+        self.currentValueFreqLabel.grid(row=4, column=0, columnspan=1, sticky='w', padx=self.xPadding, pady=(10,0))
+
+        self.sliderFreq = ttk.Scale(self, from_=0.2, to=5, orient=tk.HORIZONTAL, command=self.sliderChangedFreq,variable=self.freqCurrentValue)
+        self.sliderFreq.set(1)
+        self.sliderFreq.grid(row=5, column=0, columnspan=2, sticky='ew', padx=self.xPadding)
+    
+        
 
         self.startButton = ttk.Button(self, text="Start Task", command=self.parent.startTask)
         self.startButton.grid(row=6, column=0, sticky='w', padx=self.xPadding, pady=(10,0))
@@ -342,13 +370,20 @@ class automaticActuation(tk.LabelFrame):
         self.stopButton = ttk.Button(self, text="Stop Task", command=self.parent.stopTask)
         self.stopButton.grid(row=6, column=1, sticky='e', padx=self.xPadding, pady=(10,0))
         
-    def getCurrentValueAmplitude(self):
-        return '{: .0f}'.format(self.maxAmplitudeCurrentValue.get())
+
+    def spinBoxChanged_1(self):
+        self.sliderAmplitude.set(self.currentAmplitude.get())
+        print(self.currentAmplitude.get())
+
+    def spinBoxChanged_2(self, event):
+        self.sliderAmplitude.set(self.currentAmplitude.get())
+        print(self.currentAmplitude.get())
 
     def sliderChangedAmplitude(self, event):
-        self.currentValueAmplitudeLabel.configure(text=self.getCurrentValueAmplitude())
-        if(not self.parent.continueRunning):
-            self.parent.createSignal()
+        self.currentAmplitude.set(int(self.currentSliderAmplitude.get()))
+
+        #self.spinBoxAmplitude.configure(text=self.currentAmplitude.get())
+        
 
     def getCurrentValueFreq(self):
         return '{: .1f}'.format(self.freqCurrentValue.get())
