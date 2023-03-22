@@ -22,9 +22,6 @@ const int BUFFER_SIZE = 3;
 char buffer[BUFFER_SIZE];
 int receivedData = 0;
 
-bool polarity = 0;
-bool discharge = 0;
-
 
 void setup()
 {
@@ -43,47 +40,17 @@ void setup()
 void loop()
 {
 
-if (Serial.available() >= 2) { // check if at least 2 bytes are available
-    int receivedData = Serial.read(); // read first byte
-    receivedData |= Serial.read() << 8; // read second byte and combine with first byte
-
-}
-
-// old code:
-//  if (Serial.available() >= 3) {
-//     // Read the data from the serial buffer
-//     Serial.readBytes(buffer, BUFFER_SIZE);
-//     // Convert the received data from char array to int
-//     receivedData = atoi(buffer);
-//  }
+ if (Serial.available() >= BUFFER_SIZE) {
+    // Read the data from the serial buffer
+    Serial.readBytes(buffer, BUFFER_SIZE);
+    // Convert the received data from char array to int
+    receivedData = atoi(buffer);
+ }
 
 
+digitalWrite(LeftPin1, HIGH);
+digitalWrite(RightPin1, LOW);
+analogWrite(PWM_Pin1, receivedData);
 
-if (receivedData == 300){ //corresponds to left polarity
-  polarity = 0;
-}
-else if (receivedData == 320){ //corresponds to right polarity
-  polarity = 1;
-}
-else if(receivedData == 350) { // corresponds to the discharge bytes
-  discharge = !discharge;
-}
-
-if(discharge){
-  digitalWrite(LeftPin1, LOW);
-  digitalWrite(RightPin1, LOW);
-}
-else{
-  if(polarity){
-    digitalWrite(LeftPin1, LOW);
-    digitalWrite(RightPin1, HIGH);
-  }
-  else{
-    digitalWrite(LeftPin1, HIGH);
-    digitalWrite(RightPin1, LOW);
-  }
-}
-
-if(receivedData <= 255 && receivedData >= 0)
-  analogWrite(PWM_Pin1, receivedData); 
+  
 }
